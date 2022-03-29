@@ -90,10 +90,25 @@ namespace SeeSharpBank.Tests
             Assert.AreEqual(expected, floatValue);
         }
 
-        [TestCaseSource("GetAccountForTransactionTesting_ScenarioOne")]
-        [TestCaseSource("GetAccountForTransactionTesting_ScenarioTwo")]
-        [TestCaseSource("GetInvestmentAccountForTransactionTesting_ScenarioThree")]
-        public void TEST_Transactions(TestAccountTransactionModel scenario)
+       [Test]
+        public void TEST_Transactions_Checking()
+        {
+            ExecuteTransactiontest(GetAccountForTransactionTesting_ScenarioOne());
+        }
+
+        [Test]
+        public void TEST_Transactions_IndividualInvestmentAccount()
+        {
+            ExecuteTransactiontest(GetAccountForTransactionTesting_ScenarioTwo());
+        }
+
+        [Test]
+        public void TEST_Transactions_CorporateInvestmentAccount()
+        {
+            ExecuteTransactiontest(GetInvestmentAccountForTransactionTesting_ScenarioThree());
+        }
+
+        private void ExecuteTransactiontest(TestAccountTransactionModel scenario)
         {
             // Account account, List<Transaction> transactions, float expected
             Account account = scenario.Account;
@@ -101,9 +116,9 @@ namespace SeeSharpBank.Tests
             Account transferAccount = new Account() { AccountId = 2, AccountType = AccountType.Checking, BankId = 1, Ledger = new List<Transaction>(), Owner = "Transferee" };
 
             decimal amountTransferred = 0m;
-            foreach(Transaction t in scenario.Transactions)
+            foreach (Transaction t in scenario.Transactions)
             {
-                if (t.Type == TransactionType.Transfer) 
+                if (t.Type == TransactionType.Transfer)
                 {
                     // try to withdraw funds
                     bool withDrew = _accountService.Transact(account, new Transaction(TransactionType.Withdraw, t.Amount));
@@ -129,7 +144,7 @@ namespace SeeSharpBank.Tests
             Assert.AreEqual(amountTransferred, transferAccount.Balance);
         }
 
-        private TestAccountTransactionModel GetAccountForTransactionTesting_ScenarioOne()
+        private static TestAccountTransactionModel GetAccountForTransactionTesting_ScenarioOne()
         {
             return new TestAccountTransactionModel()
             {
@@ -154,7 +169,7 @@ namespace SeeSharpBank.Tests
                 }
             };
         }
-        private TestAccountTransactionModel GetAccountForTransactionTesting_ScenarioTwo()
+        private static TestAccountTransactionModel GetAccountForTransactionTesting_ScenarioTwo()
         {
             return new TestAccountTransactionModel()
             {
@@ -182,7 +197,7 @@ namespace SeeSharpBank.Tests
             };
         }
 
-        private TestAccountTransactionModel GetInvestmentAccountForTransactionTesting_ScenarioThree()
+        private static TestAccountTransactionModel GetInvestmentAccountForTransactionTesting_ScenarioThree()
         {
             return new TestAccountTransactionModel()
             {
