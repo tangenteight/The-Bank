@@ -2,6 +2,7 @@
 {
     public enum InvestmentAccountType
     {
+        None,
         Individual,
         Corporate
     }

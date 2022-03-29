@@ -17,7 +17,41 @@ namespace SeeSharpBank
 
         public Bank GetBankById(int id)
         {
-            return GetBanks().FirstOrDefault(i => i.Id == id);
+            var bank = GetBanks().FirstOrDefault(i => i.Id == id);
+            if (bank == null)
+            {
+                // Basic exception, always throw exceptions
+                // & log
+                throw new System.Exception($"Bank with id of {id} not found.");
+            }
+            return bank;
+        }
+
+        /// <summary>
+        /// For this exercise I am primarily focusing on 
+        /// Accounts
+        /// </summary>
+        /// <param name="bankId">The Id of the bank.</param>
+        /// <param name="account">The Account we want to add.</param>
+        /// <returns></returns>
+        public bool AddAccount(int bankId, Account account)
+        {
+            Bank b = GetBankById(bankId);
+            if (b == null)
+            {
+                // Basic exception, always throw exceptions
+                // & log
+                throw new System.Exception($"Bank with id of {bankId} not found.");
+            }
+
+            // assign the bank id to the account
+            account.BankId = bankId;
+
+            // If we had some business rules
+            // I'd do the checks here
+            b.Accounts.Add(account);
+
+            return true;
         }
     }
 }

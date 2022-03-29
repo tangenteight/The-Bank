@@ -32,13 +32,12 @@ namespace SeeSharpBank.Tests
         [TestCase(2, "Test's Account", InvestmentAccountType.Individual)]
         public void TEST_Create_Investment_Account(int bankId, string accountName, InvestmentAccountType accountType)
         {
-            InvestmentAccount account = _accountService.CreateInvestmentAccount(bankId, accountName, accountType);
+            Account account = _accountService.CreateInvestmentAccount(bankId, accountName, accountType);
 
             Assert.IsNotNull(account);
             Assert.AreEqual(bankId, account.BankId);
             Assert.AreEqual(accountName, account.Owner);
             Assert.AreEqual(accountType, account.InvestmentAccountType);
-            Assert.AreEqual(AccountType.Checking, account.AccountType);
         }
 
         [TestCase(500f, 500f)]
@@ -65,7 +64,7 @@ namespace SeeSharpBank.Tests
         public void TEST_Deposit_InvestmentAccount(float amount, float expected, InvestmentAccountType type)
         {
             decimal decimalValue = (decimal)amount;
-            InvestmentAccount account = _accountService.CreateInvestmentAccount(1, "Test Account", type);
+            Account account = _accountService.CreateInvestmentAccount(1, "Test Account", type);
 
             _accountService.Transact(account, new Transaction(TransactionType.Deposit, decimalValue));
             float floatValue = (float)account.Balance;
@@ -73,13 +72,13 @@ namespace SeeSharpBank.Tests
         }
 
         [TestCase(-500f, 500f, InvestmentAccountType.Corporate)]
-        [TestCase(300f, 700f, InvestmentAccountType.Individual)]
-        [TestCase(20f, 980f, InvestmentAccountType.Corporate)]
-        [TestCase(-20f, 1000, InvestmentAccountType.Individual)] // Test the case where someone tries to make a "Deposit" transaction with a negative
+        [TestCase(-300f, 700f, InvestmentAccountType.Individual)]
+        [TestCase(-20f, 980f, InvestmentAccountType.Corporate)]
+        [TestCase(20f, 1000, InvestmentAccountType.Individual)] // Test the case where someone tries to make a "Deposit" transaction with a positive
         public void TEST_Withdraw_InvestmentAccount(float amount, float expected, InvestmentAccountType type)
         {
             decimal decimalValue = (decimal)amount;
-            InvestmentAccount account = _accountService.CreateInvestmentAccount(1, "Test Account", type);
+            Account account = _accountService.CreateInvestmentAccount(1, "Test Account", type);
             for (int i =0; i < 10; i++)
             {
                 _accountService.Transact(account, new Transaction(TransactionType.Deposit, 100m));
@@ -113,39 +112,25 @@ namespace SeeSharpBank.Tests
             // Account account, List<Transaction> transactions, float expected
             Account account = scenario.Account;
 
-            Account transferAccount = new Account() { AccountId = 2, AccountType = AccountType.Checking, BankId = 1, Ledger = new List<Transaction>(), Owner = "Transferee" };
-
             decimal amountTransferred = 0m;
             foreach (Transaction t in scenario.Transactions)
             {
-                if (t.Type == TransactionType.Transfer)
+                bool wasSuccess = _accountService.Transact(account, t);
+                if (t.Type == TransactionType.Transfer && wasSuccess)
                 {
-                    // try to withdraw funds
-                    bool withDrew = _accountService.Transact(account, new Transaction(TransactionType.Withdraw, t.Amount));
-                    if (withDrew)
-                    {
-                        // successfully withdrew the funds
-                        // i.e. biz rules passed
-                        bool depositToTransferAccount = _accountService.Transact(transferAccount, new Transaction(TransactionType.Deposit, t.Amount * 1));
-                        Assert.IsTrue(depositToTransferAccount);
                         amountTransferred += t.Amount;
-                    }
                 }
-                else
-                {
-                    _accountService.Transact(account, t);
-                }
-
             }
 
             Assert.AreEqual(scenario.Expected, account.Balance);
 
             // Make sure the account we did any transfers to have the right balance too
-            Assert.AreEqual(amountTransferred, transferAccount.Balance);
+            Assert.AreEqual(amountTransferred, scenario.TransferAccount.Balance);
         }
 
         private static TestAccountTransactionModel GetAccountForTransactionTesting_ScenarioOne()
         {
+            Account transferAccount = new Account() { AccountId = 2, AccountType = AccountType.Checking, BankId = 1, Ledger = new List<Transaction>(), Owner = "Transferee" };
             return new TestAccountTransactionModel()
             {
                 Account = new Account
@@ -154,15 +139,17 @@ namespace SeeSharpBank.Tests
                     AccountType = AccountType.Checking,
                     BankId = 1,
                     Ledger = new List<Transaction>() { new Transaction(TransactionType.Deposit, 500) },
+                    InvestmentAccountType = InvestmentAccountType.None,
                     Owner = "Bryan"
                 },
                 Expected = 2689,
                 IsRegularChecking = true,
+                TransferAccount = transferAccount,
                 Transactions = new List<Transaction>() // The transaction we want to run for our test scenario
                 {
                     new Transaction(TransactionType.Deposit, 500), // 1000
                     new Transaction(TransactionType.Withdraw, -500), // 500
-                    new Transaction(TransactionType.Transfer, -250), // 250
+                    new Transaction(TransactionType.Transfer, 250, transferAccount), // 250
                     new Transaction(TransactionType.Deposit, 1029), // 1279
                     new Transaction(TransactionType.Withdraw, -279), // 1000
                     new Transaction(TransactionType.Deposit, 1689) // 2689
@@ -171,6 +158,7 @@ namespace SeeSharpBank.Tests
         }
         private static TestAccountTransactionModel GetAccountForTransactionTesting_ScenarioTwo()
         {
+            Account transferAccount = new Account() { AccountId = 2, AccountType = AccountType.Checking, BankId = 1, Ledger = new List<Transaction>(), Owner = "Transferee" };
             return new TestAccountTransactionModel()
             {
                 Account = new Account
@@ -178,27 +166,30 @@ namespace SeeSharpBank.Tests
                     AccountId = 1,
                     AccountType = AccountType.Investment,
                     BankId = 1,
-                    Ledger = new List<Transaction>() { new Transaction(TransactionType.Deposit, 10000) },
+                    Ledger = new List<Transaction>() { new Transaction(TransactionType.Deposit, 500) },
+                    InvestmentAccountType = InvestmentAccountType.Individual,
                     Owner = "Bryan"
                 },
-                Expected = 2689,
+                Expected = 2968,
                 IsRegularChecking = false,
+                TransferAccount = transferAccount,
                 InvestmentAccountType = InvestmentAccountType.Individual,
                 Transactions = new List<Transaction>()  // The transaction we want to run for our test scenario
                 {
                     new Transaction(TransactionType.Deposit, 500), // 1000
                     new Transaction(TransactionType.Withdraw, -500), // 500
-                    new Transaction(TransactionType.Transfer, -250), // 250                    
+                    new Transaction(TransactionType.Transfer, 250, transferAccount), // 250                    
                     new Transaction(TransactionType.Deposit, 1029), // 1279
                     new Transaction(TransactionType.Withdraw, -1279), // 1279 -- Should not be able to withdraw more than 500
-                    new Transaction(TransactionType.Deposit, 1689), // 2689
-                    new Transaction(TransactionType.Transfer, -2689), // 2689 // Should not be able to withdraw to transfer more than 500
+                    new Transaction(TransactionType.Deposit, 1689), // 2968
+                    new Transaction(TransactionType.Transfer, 2689, transferAccount), // 2968 // Should not be able to withdraw to transfer more than 500
                 }
             };
         }
 
         private static TestAccountTransactionModel GetInvestmentAccountForTransactionTesting_ScenarioThree()
         {
+            Account transferAccount = new Account() { AccountId = 2, AccountType = AccountType.Checking, BankId = 1, Ledger = new List<Transaction>(), Owner = "Transferee" };
             return new TestAccountTransactionModel()
             {
                 Account = new Account
@@ -207,16 +198,18 @@ namespace SeeSharpBank.Tests
                     AccountType = AccountType.Investment,
                     BankId = 1,
                     Ledger = new List<Transaction>() { new Transaction(TransactionType.Deposit, 10000) },
+                    InvestmentAccountType = InvestmentAccountType.Corporate,
                     Owner = "Bryan"
                 },
                 Expected = 1865242,
                 IsRegularChecking = false,
                 InvestmentAccountType = InvestmentAccountType.Corporate,
+                TransferAccount = transferAccount,
                 Transactions = new List<Transaction>()  // The transaction we want to run for our test scenario
                 {
                     new Transaction(TransactionType.Withdraw, -10000), // on corporate we don't have a withdraw limit
                     new Transaction(TransactionType.Deposit, 1800000), // 1800000
-                    new Transaction(TransactionType.Transfer, -800000), // 1000000
+                    new Transaction(TransactionType.Transfer, 800000, transferAccount), // 1000000
                     new Transaction(TransactionType.Deposit, 865242), // 1865242
                 }
             };

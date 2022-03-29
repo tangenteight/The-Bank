@@ -10,5 +10,6 @@ namespace SeeSharpBank.Tests.TestModels
         public decimal Expected { get; set; }
         public bool IsRegularChecking { get; set; }
         public InvestmentAccountType InvestmentAccountType { get; set; }
+        public Account TransferAccount { get; set; } = null;
     }
 }
